@@ -10,6 +10,7 @@ import Monitoring from "./pages/Monitoring";
 import RealtimeData from "./pages/RealtimeData";
 import Diagnosis from "./pages/Diagnosis";
 import Severity from "./pages/Severity";
+import HistoryData from "./pages/HistoryData";
 
 function App() {
   return (
@@ -21,6 +22,7 @@ function App() {
         {/* Public route with layout */}
         <Route element={<DashboardLayout />}>
           <Route path="/realtime-data" element={<RealtimeData />} />
+          <Route path="/history" element={<HistoryData />} />
         </Route>
 
         {/* Protected routes */}
