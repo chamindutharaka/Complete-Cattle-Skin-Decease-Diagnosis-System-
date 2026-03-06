@@ -7,7 +7,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Monitoring from "./pages/Monitoring";
-import Charts from "./pages/Charts";
+import RealtimeData from "./pages/RealtimeData";
 import Diagnosis from "./pages/Diagnosis";
 import Severity from "./pages/Severity";
 
@@ -18,6 +18,12 @@ function App() {
 
         <Route path="/login" element={<Login />} />
 
+        {/* Public route with layout */}
+        <Route element={<DashboardLayout />}>
+          <Route path="/realtime-data" element={<RealtimeData />} />
+        </Route>
+
+        {/* Protected routes */}
         <Route
           element={
             <ProtectedRoute>
@@ -27,7 +33,6 @@ function App() {
         >
           <Route path="/" element={<Dashboard />} />
           <Route path="/monitoring" element={<Monitoring />} />
-          <Route path="/charts" element={<Charts />} />
           <Route path="/diagnosis" element={<Diagnosis />} />
           <Route path="/severity" element={<Severity />} />
         </Route>
