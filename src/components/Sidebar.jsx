@@ -8,7 +8,7 @@ function Sidebar() {
   const navItems = [
     { path: "/", label: "Dashboard", icon: <LayoutDashboard size={20} /> },
     { path: "/monitoring", label: "Monitoring", icon: <Activity size={20} /> },
-    { path: "/charts", label: "Charts", icon: <BarChart3 size={20} /> },
+    { path: "/realtime-data", label: "Realtime Data", icon: <BarChart3 size={20} /> },
     { path: "/diagnosis", label: "Diagnosis", icon: <Stethoscope size={20} /> },
     { path: "/severity", label: "Severity", icon: <AlertTriangle size={20} /> },
   ];
