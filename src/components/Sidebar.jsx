@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Activity, BarChart3, Stethoscope, AlertTriangle } from "lucide-react";
+import { LayoutDashboard, Activity, BarChart3, Stethoscope, AlertTriangle, Clock } from "lucide-react";
 
 function Sidebar() {
   const location = useLocation();
@@ -9,6 +9,7 @@ function Sidebar() {
     { path: "/", label: "Dashboard", icon: <LayoutDashboard size={20} /> },
     { path: "/monitoring", label: "Monitoring", icon: <Activity size={20} /> },
     { path: "/realtime-data", label: "Realtime Data", icon: <BarChart3 size={20} /> },
+    { path: "/history", label: "History", icon: <Clock size={20} /> },
     { path: "/diagnosis", label: "Diagnosis", icon: <Stethoscope size={20} /> },
     { path: "/severity", label: "Severity", icon: <AlertTriangle size={20} /> },
   ];
