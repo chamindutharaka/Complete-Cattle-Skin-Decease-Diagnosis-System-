@@ -1,0 +1,5 @@
+DHT sensor library by Adafruit (version 1.4.4 or later)
+Adafruit Unified Sensor (version 1.1.9 or later)
+Adafruit SSD1306 (version 2.5.7 or later)
+Adafruit GFX Library (version 1.11.9 or later)
+MAX30100_PulseOximeter by OXullo Intersecans (version 1.1.0 or later)
