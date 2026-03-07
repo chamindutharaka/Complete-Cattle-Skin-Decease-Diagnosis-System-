@@ -1,5 +1,29 @@
 import os
+import json
+import flask.json
+
+# Compatibility fix for Flask 3.0+ which removed JSONEncoder and JSONDecoder
+try:
+    from flask.json import JSONEncoder
+except ImportError:
+    class JSONEncoder(json.JSONEncoder):
+        pass
+    flask.json.JSONEncoder = JSONEncoder
+
+try:
+    from flask.json import JSONDecoder
+except ImportError:
+    class JSONDecoder(json.JSONDecoder):
+        pass
+    flask.json.JSONDecoder = JSONDecoder
+
 from flask import Flask
+# Restore removed attributes for flask-mongoengine compatibility
+if not hasattr(Flask, 'json_encoder'):
+    Flask.json_encoder = JSONEncoder
+if not hasattr(Flask, 'json_decoder'):
+    Flask.json_decoder = JSONDecoder
+
 from backend_flask.extensions import init_extensions, socketio
 from backend_flask.routes.auth import auth_bp
 from backend_flask.routes.cattle import cattle_bp
@@ -14,15 +38,10 @@ def create_app():
     app.url_map.strict_slashes = False # Allow /api/cattle and /api/cattle/ to work the same
     
     # Configuration
-    BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-    DB_PATH = os.path.join(BASE_DIR, 'models_data', 'flask_app.db')
-    
-    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{DB_PATH}'
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'super-secret-research-key')
-    app.config['SECRET_KEY'] = 'another-secret-key' # Required for sessions/socketio
+    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'another-secret-key')
 
-    # Initialize Extensions (DB, JWT, SocketIO, CORS)
+    # Initialize Extensions (MongoDB, JWT, SocketIO, CORS)
     init_extensions(app)
 
     # Register Blueprints (Routes)

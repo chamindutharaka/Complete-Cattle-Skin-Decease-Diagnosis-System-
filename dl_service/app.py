@@ -1,4 +1,4 @@
-# dl_service/app.py
+# dl_service/app.py  (improved v2)
 from flask import Flask, request, jsonify
 import numpy as np
 import pandas as pd
@@ -12,71 +12,114 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# Configuration
 SEQUENCE_LENGTH = int(os.getenv("SEQUENCE_LENGTH", 30))
-N_FEATURES = 6 # Temperature, Humidity, Heart Rate, Distance, Hour, Day of Week
-processor = DataProcessor(sequence_length=SEQUENCE_LENGTH, features=['temperature', 'humidity', 'heartRate', 'distance', 'hour', 'day_of_week'])
-detector = AnomalyDetector(sequence_length=SEQUENCE_LENGTH, n_features=N_FEATURES)
+N_FEATURES = 6
+FEATURES   = ['temperature', 'humidity', 'heartRate', 'distance', 'hour', 'day_of_week']
+MODELS_DIR = "models"
 
-# Load scalers (if they were saved by training_script)
+processor = DataProcessor(sequence_length=SEQUENCE_LENGTH, features=FEATURES)
+detector  = AnomalyDetector(
+    sequence_length=SEQUENCE_LENGTH,
+    n_features=N_FEATURES,
+    model_path_prefix=os.path.join(MODELS_DIR, "cattle_"),
+    threshold_path_prefix=os.path.join(MODELS_DIR, "threshold_cattle_"),
+    global_model_path=os.path.join(MODELS_DIR, "global_model.h5"),
+    global_threshold_path=os.path.join(MODELS_DIR, "global_threshold.joblib"),
+)
+
+# Load all scalers (per-cow + global)
+scalers_path = os.path.join(MODELS_DIR, "scalers.joblib")
 try:
-    processor.scalers = joblib.load("models/scalers.joblib")
-    print("Loaded scalers from dl_service/models/scalers.joblib")
+    processor.scalers = joblib.load(scalers_path)
+    print(f"✅  Scalers loaded: {list(processor.scalers.keys())}")
 except FileNotFoundError:
-    print("Scalers not found. Models must be trained and scalers saved first.")
+    print("⚠️  Scalers not found. Run: python dl_service/train.py")
+
+
+@app.route('/health', methods=['GET'])
+def health():
+    """Quick health check — confirms the service is alive."""
+    global_ready = os.path.exists(os.path.join(MODELS_DIR, "global_model.h5"))
+    return jsonify({
+        "status": "ok",
+        "global_model_ready": global_ready,
+        "scalers_loaded": len(processor.scalers),
+    })
+
 
 @app.route('/detect_anomaly', methods=['POST'])
 def detect_anomaly():
-    data = request.json
-    cattle_id = data.get('cattleId')
+    data = request.get_json()
+    cattle_id       = data.get('cattleId')
     current_reading = {
         'temperature': data.get('temperature'),
-        'humidity': data.get('humidity'),
-        'heartRate': data.get('heartRate'), # Added heartRate
-        'distance': data.get('distance'),   # Added distance
-        'createdAt': data.get('createdAt')
+        'humidity':    data.get('humidity'),
+        'heartRate':   data.get('heartRate'),
+        'distance':    data.get('distance', 0),
+        'createdAt':   data.get('createdAt'),
     }
-    recent_history = data.get('recentHistory') # Expect a list of {temperature, humidity, createdAt}
+    recent_history = data.get('recentHistory', [])
 
-    if not all([cattle_id, current_reading['temperature'] is not None, current_reading['humidity'] is not None, recent_history is not None]):
-        return jsonify({"error": "Missing required data"}), 400
+    # Basic validation
+    required = ['temperature', 'humidity', 'heartRate', 'createdAt']
+    missing  = [k for k in required if current_reading.get(k) is None]
+    if not cattle_id or missing:
+        return jsonify({"error": f"Missing fields: {missing or 'cattleId'}"}), 400
 
-    # Ensure recent_history combined with current_reading forms a sequence of SEQUENCE_LENGTH
-    # This means recent_history should contain SEQUENCE_LENGTH - 1 readings
     if len(recent_history) < SEQUENCE_LENGTH - 1:
-        return jsonify({"error": f"Not enough recent history provided. Expected {SEQUENCE_LENGTH - 1}, got {len(recent_history)}"}), 400
+        return jsonify({
+            "error": f"Need {SEQUENCE_LENGTH - 1} history readings, got {len(recent_history)}"
+        }), 400
 
-    # Combine recent history and current reading to form the full sequence
-    full_sequence_data = recent_history + [current_reading]
-    df_full_sequence = pd.DataFrame(full_sequence_data)
-    df_full_sequence['createdAt'] = pd.to_datetime(df_full_sequence['createdAt'])
-    df_full_sequence['hour'] = df_full_sequence['createdAt'].dt.hour
-    df_full_sequence['day_of_week'] = df_full_sequence['createdAt'].dt.dayofweek
-    df_full_sequence = df_full_sequence.sort_values('createdAt').reset_index(drop=True)
-    
-    # Extract features for the sequence
-    sequence_to_predict = df_full_sequence[processor.features].values
+    # Build full sequence
+    full_sequence = recent_history[-(SEQUENCE_LENGTH - 1):] + [current_reading]
+    df = pd.DataFrame(full_sequence)
+    df['createdAt']   = pd.to_datetime(df['createdAt'])
+    df['hour']        = df['createdAt'].dt.hour
+    df['day_of_week'] = df['createdAt'].dt.dayofweek
 
-    # Check if the sequence has the correct length
-    if len(sequence_to_predict) != SEQUENCE_LENGTH:
-        return jsonify({"error": f"Processed sequence length mismatch. Expected {SEQUENCE_LENGTH}, got {len(sequence_to_predict)}"}), 400
+    # Fill missing distance with 0
+    if 'distance' not in df.columns:
+        df['distance'] = 0
+    df['distance'] = df['distance'].fillna(0)
 
-    # Normalize the single sequence using the cattle's specific scaler
+    df = df.sort_values('createdAt').reset_index(drop=True)
+
+    # Extract feature matrix
+    missing_cols = [c for c in FEATURES if c not in df.columns]
+    if missing_cols:
+        return jsonify({"error": f"Missing features in payload: {missing_cols}"}), 400
+
+    sequence_array = df[FEATURES].values.astype(np.float32)
+    if len(sequence_array) != SEQUENCE_LENGTH:
+        return jsonify({"error": f"Sequence length mismatch: {len(sequence_array)}/{SEQUENCE_LENGTH}"}), 400
+
+    # Normalise — uses per-cow scaler or falls back to global
     try:
-        normalized_sequence = processor.normalize_data(cattle_id=cattle_id, data=np.array([sequence_to_predict]))
+        normalised = processor.normalize_data(
+            cattle_id=cattle_id,
+            data=np.array([sequence_array]),
+            fit=False,
+        )
     except ValueError as e:
         return jsonify({"error": str(e)}), 500
 
-    is_anomaly, error = detector.predict_anomaly(cattle_id, normalized_sequence[0])
+    # Predict (per-cow model → global model fallback)
+    is_anomaly, recon_error = detector.predict_anomaly(cattle_id, normalised[0])
 
-    if error is None:
-        return jsonify({"error": f"Model not ready for cattle ID {cattle_id}. Train model first."}), 503
+    if recon_error is None:
+        return jsonify({
+            "error": "No model available. Run: python dl_service/train.py"
+        }), 503
 
     return jsonify({
-        "cattleId": cattle_id,
-        "is_anomaly": bool(is_anomaly),
-        "reconstruction_error": float(error)
+        "cattleId":             cattle_id,
+        "is_anomaly":           bool(is_anomaly),
+        "reconstruction_error": float(recon_error),
+        "model_used":           "per_cow" if detector.load_model(cattle_id) else "global",
     })
 
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5007, debug=True)
+    port = int(os.getenv("PORT", 5007))
+    app.run(host='0.0.0.0', port=port, debug=True)

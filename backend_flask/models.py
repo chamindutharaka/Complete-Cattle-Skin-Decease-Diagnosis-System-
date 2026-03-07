@@ -1,51 +1,62 @@
-from flask_sqlalchemy import SQLAlchemy
+from flask_mongoengine import MongoEngine
 from datetime import datetime
 
-db = SQLAlchemy()
+db = MongoEngine()
 
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    password = db.Column(db.String(120), nullable=False)
-    phone = db.Column(db.String(20), unique=True, nullable=True)
-    role = db.Column(db.String(20), default="farmer")
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+class User(db.Document):
+    username = db.StringField(unique=True, required=True)
+    password = db.StringField(required=True)
+    phone = db.StringField(unique=True)
+    role = db.StringField(default="farmer")
+    created_at = db.DateTimeField(default=datetime.utcnow)
+
+    meta = {'collection': 'users'}
+
+class Cattle(db.Document):
+    device_id = db.StringField(unique=True, required=True)
+    name = db.StringField(required=True)
+    created_at = db.DateTimeField(default=datetime.utcnow)
+    updated_at = db.DateTimeField()
+
+    def save(self, *args, **kwargs):
+        self.updated_at = datetime.utcnow()
+        return super(Cattle, self).save(*args, **kwargs)
+
+    meta = {'collection': 'cattle'}
+
+class SensorReading(db.Document):
+    temperature = db.FloatField(required=True)
+    humidity = db.FloatField(required=True)
+    heart_rate = db.FloatField()
+    distance = db.FloatField()
+    spo2 = db.FloatField()
+    created_at = db.DateTimeField(default=datetime.utcnow)
     
-    # Relationships
-    assigned_cattle = db.relationship('CattleStaff', backref='user', lazy=True)
+    cattle = db.ReferenceField('Cattle', reverse_delete_rule=db.CASCADE)
 
-class Cattle(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    device_id = db.Column(db.String(50), unique=True, nullable=False)
-    name = db.Column(db.String(100), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, onupdate=datetime.utcnow)
+    meta = {
+        'collection': 'sensor_readings',
+        'indexes': ['cattle', '-created_at']
+    }
+
+class Alert(db.Document):
+    message = db.StringField(required=True)
+    level = db.StringField(required=True) # warning, critical, DL_Anomaly
+    created_at = db.DateTimeField(default=datetime.utcnow)
     
-    # Relationships
-    sensor_readings = db.relationship('SensorReading', backref='cattle', lazy=True, order_by="desc(SensorReading.created_at)")
-    alerts = db.relationship('Alert', backref='cattle', lazy=True)
-    assigned_staff = db.relationship('CattleStaff', backref='cattle', lazy=True)
+    cattle = db.ReferenceField('Cattle', reverse_delete_rule=db.CASCADE)
 
-class CattleStaff(db.Model):
-    cattle_id = db.Column(db.Integer, db.ForeignKey('cattle.id'), primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
-    assigned_at = db.Column(db.DateTime, default=datetime.utcnow)
+    meta = {
+        'collection': 'alerts',
+        'indexes': ['cattle', '-created_at']
+    }
 
-class SensorReading(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    temperature = db.Column(db.Float, nullable=False)
-    humidity = db.Column(db.Float, nullable=False)
-    heart_rate = db.Column(db.Float, nullable=True)
-    distance = db.Column(db.Float, nullable=True)
-    spo2 = db.Column(db.Float, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    cattle_id = db.Column(db.Integer, db.ForeignKey('cattle.id'), nullable=False)
+class CattleStaff(db.Document):
+    cattle = db.ReferenceField('Cattle', required=True)
+    user = db.ReferenceField('User', required=True)
+    assigned_at = db.DateTimeField(default=datetime.utcnow)
 
-class Alert(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    message = db.Column(db.String(255), nullable=False)
-    level = db.Column(db.String(50), nullable=False) # warning, critical, DL_Anomaly
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    cattle_id = db.Column(db.Integer, db.ForeignKey('cattle.id'), nullable=False)
+    meta = {
+        'collection': 'cattle_staff',
+        'indexes': [('cattle', 'user')]
+    }

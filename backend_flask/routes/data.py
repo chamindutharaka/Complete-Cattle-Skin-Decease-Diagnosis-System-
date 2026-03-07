@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, current_app
-from backend_flask.models import db, Cattle, SensorReading, Alert
+from backend_flask.models import Cattle, SensorReading, Alert
 from backend_flask.extensions import socketio
 from backend_flask.services.anomaly_detector import AnomalyDetector
 from backend_flask.services.data_processor import DataProcessor
@@ -12,7 +12,6 @@ from datetime import datetime
 data_bp = Blueprint('data', __name__)
 
 # Initialize DL Services
-# Using absolute paths to ensure models are found regardless of where app is run
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../dl_service'))
 MODEL_DIR = os.path.join(BASE_DIR, 'models')
 
@@ -49,12 +48,11 @@ def receive_data():
     if not device_id or temperature is None:
         return jsonify({"message": "Missing deviceId or temperature"}), 400
         
-    cattle = Cattle.query.filter_by(device_id=device_id).first()
+    cattle = Cattle.objects(device_id=device_id).first()
     if not cattle:
-        # Auto-register cattle if it doesn't exist (optional, helpful for testing)
+        # Auto-register cattle if it doesn't exist
         cattle = Cattle(device_id=device_id, name=f"Unknown Cow ({device_id})")
-        db.session.add(cattle)
-        db.session.commit()
+        cattle.save()
     
     # Save Reading
     new_reading = SensorReading(
@@ -63,14 +61,13 @@ def receive_data():
         heart_rate=heart_rate,
         distance=distance,
         spo2=spo2,
-        cattle_id=cattle.id
+        cattle=cattle
     )
-    db.session.add(new_reading)
-    db.session.commit()
+    new_reading.save()
     
     # Broadcast new reading via WebSocket
     socketio.emit('new_reading', {
-        'cattleId': cattle.id,
+        'cattleId': str(cattle.id),
         'temperature': temperature,
         'humidity': humidity,
         'heartRate': heart_rate,
@@ -79,11 +76,10 @@ def receive_data():
     
     # --- ANOMALY DETECTION ---
     try:
-        # Fetch recent history for this cattle (last SEQUENCE_LENGTH - 1 readings)
-        # We need enough data to form a sequence
-        recent_readings = SensorReading.query.filter_by(cattle_id=cattle.id)\
-            .order_by(SensorReading.created_at.desc())\
-            .limit(SEQUENCE_LENGTH).all()
+        # Fetch recent history for this cattle
+        recent_readings = SensorReading.objects(cattle=cattle)\
+            .order_by('-created_at')\
+            .limit(SEQUENCE_LENGTH)
             
         if len(recent_readings) == SEQUENCE_LENGTH:
             # Prepare DataFrame for Processor
@@ -91,7 +87,7 @@ def receive_data():
             history_data = [{
                 'temperature': r.temperature,
                 'humidity': r.humidity,
-                'heartRate': r.heart_rate if r.heart_rate is not None else 0, # Handle potential None
+                'heartRate': r.heart_rate if r.heart_rate is not None else 0,
                 'distance': r.distance if r.distance is not None else 0,
                 'createdAt': r.created_at
             } for r in reversed(recent_readings)]
@@ -101,38 +97,33 @@ def receive_data():
             df['hour'] = df['createdAt'].dt.hour
             df['day_of_week'] = df['createdAt'].dt.dayofweek
             
-            # Normalize
-            # Use only the last sequence which ends with the current reading
-            # DataProcessor.create_sequences might be overkill for single prediction, so manually extracting
             sequence_data = df[processor.features].values
             
             if sequence_data.shape[0] == SEQUENCE_LENGTH:
-                 # Normalize
-                normalized_seq = processor.normalize_data(cattle_id=cattle.id, data=np.array([sequence_data]))
+                # Normalize
+                normalized_seq = processor.normalize_data(cattle_id=str(cattle.id), data=np.array([sequence_data]))
                 
                 # Predict
-                is_anomaly, error = detector.predict_anomaly(cattle.id, normalized_seq[0])
+                is_anomaly, error = detector.predict_anomaly(str(cattle.id), normalized_seq[0])
                 
                 if is_anomaly:
                     print(f"ANOMALY DETECTED for {cattle.name}! Error: {error}")
                     alert_msg = f"DL Anomaly Detected! Error: {error:.4f}"
                     
                     # Save Alert
-                    alert = Alert(message=alert_msg, level='DL_Anomaly', cattle_id=cattle.id)
-                    db.session.add(alert)
-                    db.session.commit()
+                    alert = Alert(message=alert_msg, level='DL_Anomaly', cattle=cattle)
+                    alert.save()
                     
                     # Broadcast Alert
                     socketio.emit('new_alert', {
-                        'id': alert.id,
+                        'id': str(alert.id),
                         'message': alert_msg,
-                        'cattleId': cattle.id,
+                        'cattleId': str(cattle.id),
                         'level': 'DL_Anomaly',
                         'createdAt': alert.created_at.isoformat()
                     })
 
     except Exception as e:
         print(f"Error in anomaly detection: {e}")
-        # Don't fail the request if DL fails, just log it
         
-    return jsonify({"message": "Data received", "id": new_reading.id}), 201
+    return jsonify({"message": "Data received", "id": str(new_reading.id)}), 201

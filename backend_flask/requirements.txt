@@ -1,9 +1,14 @@
-flask
+flask==2.3.3
+werkzeug==2.3.7
 flask-sqlalchemy
 flask-migrate
 flask-cors
 flask-jwt-extended
 flask-socketio
+flask-mongoengine
+dnspython
+eventlet
+numpy
 eventlet
 numpy
 pandas
