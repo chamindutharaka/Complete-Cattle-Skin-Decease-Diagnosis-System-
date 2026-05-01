@@ -1,12 +1,4 @@
-"""
-firebase_bridge.py
-------------------
-Listens to Firebase Realtime Database for live sensor readings from ESP32 devices
-and forwards them to the existing Flask backend (/api/data/).
 
-ESP32 writes to: /devices/ESP32_01/live  (live snapshot, overwritten every 5s)
-This bridge polls that path and forwards new readings to Flask.
-"""
 
 import os
 import time
@@ -18,14 +10,12 @@ load_dotenv(dotenv_path="backend_flask/.env")
 FIREBASE_DATABASE_URL = os.getenv("FIREBASE_DATABASE_URL", "").rstrip("/")
 FIREBASE_API_KEY      = os.getenv("FIREBASE_API_KEY", "")
 FLASK_BACKEND_URL     = os.getenv("FLASK_BACKEND_URL", "http://localhost:5006")
-POLL_INTERVAL_SEC     = 5   # Poll every 5 seconds (matches ESP32 upload interval)
+POLL_INTERVAL_SEC     = 5
 
-# Track last seen timestamp per device to avoid re-forwarding same data
 last_seen_timestamp: dict = {}
 
-
 def fetch_live_data(device_id: str) -> dict:
-    """Fetch the live snapshot for a specific ESP32 device."""
+    
     url = f"{FIREBASE_DATABASE_URL}/devices/{device_id}/live.json?auth={FIREBASE_API_KEY}"
     try:
         resp = requests.get(url, timeout=8)
@@ -35,9 +25,8 @@ def fetch_live_data(device_id: str) -> dict:
         print(f"  [Firebase] Error fetching {device_id}: {e}")
         return {}
 
-
 def fetch_all_devices() -> list:
-    """Get list of all device IDs under /devices/ node."""
+    
     url = f"{FIREBASE_DATABASE_URL}/devices.json?auth={FIREBASE_API_KEY}&shallow=true"
     try:
         resp = requests.get(url, timeout=8)
@@ -50,9 +39,8 @@ def fetch_all_devices() -> list:
         print(f"  [Firebase] Error listing devices: {e}")
         return []
 
-
 def forward_to_flask(device_id: str, reading: dict) -> bool:
-    """Forward a sensor reading to the Flask /api/data/ endpoint."""
+    
     payload = {
         "deviceId":    device_id,
         "temperature": reading.get("temperature"),
@@ -85,9 +73,8 @@ def forward_to_flask(device_id: str, reading: dict) -> bool:
         print(f"  [Bridge] Cannot reach Flask backend: {e}")
         return False
 
-
 def poll_loop():
-    """Main polling loop — checks Firebase every POLL_INTERVAL_SEC seconds."""
+    
     print(f"  Polling Firebase every {POLL_INTERVAL_SEC}s...")
     print(f"  Flask Backend : {FLASK_BACKEND_URL}")
     print(f"  Firebase DB   : {FIREBASE_DATABASE_URL}")
@@ -104,8 +91,8 @@ def poll_loop():
                 if not reading:
                     continue
 
-                # Use 'timestamp' (from Firebase server) to detect new readings
-                # Firebase server timestamps are large integers (ms since epoch)
+                # use 'timestamp' (from firebase server) to detect new readings
+                # firebase server timestamps are large integers (ms since epoch)
                 current_ts = reading.get("timestamp")
 
                 if current_ts != last_seen_timestamp.get(device_id):
@@ -113,7 +100,6 @@ def poll_loop():
                     forward_to_flask(device_id, reading)
 
         time.sleep(POLL_INTERVAL_SEC)
-
 
 if __name__ == "__main__":
     print()
@@ -145,7 +131,7 @@ if __name__ == "__main__":
         exit(1)
 
     print()
-    print("  🐄 Bridge is LIVE — forwarding ESP32 data to Flask backend...")
+    print("   Bridge is LIVE — forwarding ESP32 data to Flask backend...")
     print("  Press Ctrl+C to stop")
     print()
 

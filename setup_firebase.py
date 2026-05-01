@@ -1,11 +1,4 @@
-"""
-setup_firebase.py
------------------
-Run this script to connect the real ESP32 IoT device via Firebase.
-It will ask for Firebase details, test the connection, and start the bridge.
 
-Usage:  python setup_firebase.py
-"""
 
 import os
 import json
@@ -22,7 +15,7 @@ print()
 print("ඔයාගේ teammate ගෙන් phone call ගාලා දෙන Firebase details")
 print("type කරලා Enter කරන්න:\n")
 
-# --- Step 1: Get Firebase details ---
+# --- step 1: get firebase details ---
 db_url = input("1. Firebase Database URL\n   (e.g. https://my-project.firebaseio.com)\n   URL: ").strip().rstrip("/")
 api_key = input("\n2. Firebase API Key (Web API Key)\n   Key: ").strip()
 fb_path = input("\n3. Firebase Database Path where ESP32 writes data\n   (Press Enter for default: /sensor_readings)\n   Path: ").strip()
@@ -36,7 +29,7 @@ print()
 print("-" * 60)
 print("Testing Firebase connection...")
 
-# --- Step 2: Test the connection ---
+# --- step 2: test the connection ---
 test_url = f"{db_url}{fb_path}.json?auth={api_key}"
 try:
     resp = requests.get(test_url, timeout=8)
@@ -65,19 +58,19 @@ except Exception as e:
     print(f"❌ Unexpected error: {e}")
     exit(1)
 
-# --- Step 3: Save to .env ---
+# --- step 3: save to .env ---
 print()
 print("Saving to .env ...")
 set_key(ENV_PATH, "FIREBASE_DATABASE_URL", db_url)
 set_key(ENV_PATH, "FIREBASE_API_KEY", api_key)
 set_key(ENV_PATH, "FLASK_BACKEND_URL", "http://localhost:5006")
 
-# Also save path to env (bridge will read it)
+# also save path to env (bridge will read it)
 set_key(ENV_PATH, "FIREBASE_PATH", fb_path)
 
 print("✅ .env file updated!")
 
-# --- Step 4: Update firebase_bridge.py path dynamically ---
+# --- step 4: update firebase_bridge.py path dynamically ---
 print()
 print("=" * 60)
 print("✅ SETUP COMPLETE!")
@@ -94,11 +87,11 @@ print("    cd /Users/malshan/Desktop/Research/cattle-ai-frontend && npm run dev"
 print()
 print("  Browser: http://localhost:5175/realtime-data")
 print()
-print("ESP32 device data will appear LIVE in the frontend! 🐄📡")
+print("ESP32 device data will appear LIVE in the frontend! ")
 print("=" * 60)
 print()
 
-# Auto-start option
+# auto-start option
 start = input("Auto-start Firebase Bridge now? (y/n): ").strip().lower()
 if start == "y":
     print("\n[Bridge] Starting Firebase Bridge...")

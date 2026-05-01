@@ -13,10 +13,10 @@ NODE_BACKEND_URL = os.getenv("NODE_BACKEND_URL", "http://localhost:3002") # Upda
 AUTH_USERNAME = os.getenv("AUTH_USERNAME", "testuser")
 AUTH_PASSWORD = os.getenv("AUTH_PASSWORD", "password")
 SEQUENCE_LENGTH = int(os.getenv("SEQUENCE_LENGTH", 30))
-N_FEATURES = 6 # Temperature, Humidity, Heart Rate, Distance, Hour, Day of Week
+N_FEATURES = 6
 TRAINING_EPOCHS = int(os.getenv("TRAINING_EPOCHS", 50))
 TRAINING_BATCH_SIZE = int(os.getenv("TRAINING_BATCH_SIZE", 16))
-ANOMALY_CONTAMINATION = float(os.getenv("ANOMALY_CONTAMINATION", 0.01)) # % of anomalies to expect in training data
+ANOMALY_CONTAMINATION = float(os.getenv("ANOMALY_CONTAMINATION", 0.01))
 
 def get_auth_token():
     try:
@@ -40,26 +40,26 @@ def fetch_all_cattle(token):
 def train_and_save_model_for_cattle(cattle_id, processor, detector, token):
     print(f"\n--- Processing Cattle ID: {cattle_id} ---")
     
-    # 1. Fetch historical data for training
-    df_history = processor.fetch_historical_data(cattle_id, token, lookback_minutes=5000) # Fetch more data for training
+    # 1. fetch historical data for training
+    df_history = processor.fetch_historical_data(cattle_id, token, lookback_minutes=5000) # fetch more data for training
     if df_history.empty or len(df_history) < SEQUENCE_LENGTH:
         print(f"Not enough historical data for cattle ID {cattle_id} to train model (need {SEQUENCE_LENGTH} readings).")
         return
 
-    # 2. Create sequences and normalize
+    # 2. create sequences and normalize
     data_sequences = processor.create_sequences(df_history)
     normalized_sequences = processor.normalize_data(cattle_id=cattle_id, data=data_sequences, fit=True)
 
-    # 3. Train Autoencoder model
+    # 3. train autoencoder model
     model = detector.train_model(cattle_id=cattle_id, 
                                  data_sequences=normalized_sequences, 
                                  epochs=TRAINING_EPOCHS, 
                                  batch_size=TRAINING_BATCH_SIZE)
 
-    # 4. Calculate reconstruction errors on training data
+    # 4. calc reconstruction errors on training data
     train_errors = detector.calculate_reconstruction_errors(model, normalized_sequences)
     
-    # 5. Set and save anomaly threshold
+    # 5. set and save anomaly threshold
     threshold = detector.set_anomaly_threshold(cattle_id=cattle_id, errors=train_errors, contamination=ANOMALY_CONTAMINATION)
 
     print(f"Model and threshold saved for cattle ID: {cattle_id}")
@@ -79,7 +79,7 @@ if __name__ == '__main__':
     processor = DataProcessor(sequence_length=SEQUENCE_LENGTH, features=['temperature', 'humidity', 'heartRate', 'distance', 'hour', 'day_of_week'])
     detector = AnomalyDetector(SEQUENCE_LENGTH, N_FEATURES)
 
-    # Ensure models directory exists
+    # ensure models directory exists
     models_dir = "dl_service/models"
     os.makedirs(models_dir, exist_ok=True)
 
@@ -88,7 +88,6 @@ if __name__ == '__main__':
 
     print("\n--- All models trained and thresholds set ---")
 
-    # Save the processor's scalers (important for consistent normalization during inference)
     scalers_path = os.path.join(models_dir, "scalers.joblib")
     joblib.dump(processor.scalers, scalers_path)
     print(f"Scalers saved to {scalers_path}")

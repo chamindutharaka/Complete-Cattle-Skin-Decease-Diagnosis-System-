@@ -11,17 +11,17 @@ from datetime import datetime
 
 data_bp = Blueprint('data', __name__)
 
-# Initialize DL Services
+# init dl services
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../dl_service'))
 MODEL_DIR = os.path.join(BASE_DIR, 'models')
 
 SEQUENCE_LENGTH = 30
-N_FEATURES = 6 # Temperature, Humidity, Heart Rate, Distance, Hour, Day of Week
+N_FEATURES = 6
 
 processor = DataProcessor(sequence_length=SEQUENCE_LENGTH, features=['temperature', 'humidity', 'heartRate', 'distance', 'hour', 'day_of_week'])
 detector = AnomalyDetector(sequence_length=SEQUENCE_LENGTH, n_features=N_FEATURES, model_path_prefix=os.path.join(MODEL_DIR, "cattle_"), threshold_path_prefix=os.path.join(MODEL_DIR, "threshold_cattle_"))
 
-# Load scalers if available
+# load scalers if available
 SCALER_PATH = os.path.join(MODEL_DIR, "scalers.joblib")
 if os.path.exists(SCALER_PATH):
     try:
@@ -32,13 +32,12 @@ if os.path.exists(SCALER_PATH):
 else:
     print(f"Warning: Scalers not found at {SCALER_PATH}. DL model will not work correctly without training.")
 
-
 @data_bp.route('/', methods=['POST'])
 def receive_data():
     data = request.get_json()
     device_id = data.get('deviceId')
     
-    # Extract sensor data
+    # extract sensor data
     temperature = data.get('temperature')
     humidity = data.get('humidity')
     heart_rate = data.get('heartRate')
@@ -50,11 +49,11 @@ def receive_data():
         
     cattle = Cattle.objects(device_id=device_id).first()
     if not cattle:
-        # Auto-register cattle if it doesn't exist
+        # auto-register cattle if it doesn't exist
         cattle = Cattle(device_id=device_id, name=f"Unknown Cow ({device_id})")
         cattle.save()
     
-    # Save Reading
+    # save reading
     new_reading = SensorReading(
         temperature=temperature,
         humidity=humidity,
@@ -65,7 +64,7 @@ def receive_data():
     )
     new_reading.save()
     
-    # Broadcast new reading via WebSocket
+    # broadcast new reading via websocket
     socketio.emit('new_reading', {
         'cattleId': str(cattle.id),
         'temperature': temperature,
@@ -74,16 +73,16 @@ def receive_data():
         'createdAt': new_reading.created_at.isoformat()
     })
     
-    # --- ANOMALY DETECTION ---
+    # --- anomaly detection ---
     try:
-        # Fetch recent history for this cattle
+        # fetch recent history for this cattle
         recent_readings = SensorReading.objects(cattle=cattle)\
             .order_by('-created_at')\
             .limit(SEQUENCE_LENGTH)
             
         if len(recent_readings) == SEQUENCE_LENGTH:
-            # Prepare DataFrame for Processor
-            # Note: recent_readings is DESC, so reverse it for chronological order
+            # prepare dataframe for processor
+            # note: recent_readings is desc, so reverse it for chronological order
             history_data = [{
                 'temperature': r.temperature,
                 'humidity': r.humidity,
@@ -100,10 +99,10 @@ def receive_data():
             sequence_data = df[processor.features].values
             
             if sequence_data.shape[0] == SEQUENCE_LENGTH:
-                # Normalize
+                # normalize
                 normalized_seq = processor.normalize_data(cattle_id=str(cattle.id), data=np.array([sequence_data]))
                 
-                # Predict
+                # predict
                 is_anomaly, error = detector.predict_anomaly(str(cattle.id), normalized_seq[0])
                 print(f"[DEBUG] Cattle={cattle.name} Error={error} IsAnomaly={is_anomaly}")
                 
@@ -111,11 +110,11 @@ def receive_data():
                     print(f"ANOMALY DETECTED for {cattle.name}! Error: {error}")
                     alert_msg = f"DL Anomaly Detected! Error: {error:.4f}"
                     
-                    # Save Alert
+                    # save alert
                     alert = Alert(message=alert_msg, level='DL_Anomaly', cattle=cattle)
                     alert.save()
                     
-                    # Broadcast Alert
+                    # broadcast alert
                     socketio.emit('new_alert', {
                         'id': str(alert.id),
                         'message': alert_msg,

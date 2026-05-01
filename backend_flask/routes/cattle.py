@@ -9,7 +9,7 @@ def get_all_cattle():
     cattle_list = Cattle.objects()
     result = []
     for c in cattle_list:
-        # Get latest sensor reading for the dashboard summary
+        # get latest sensor reading for the dashboard summary
         latest = SensorReading.objects(cattle=c).order_by('-created_at').first()
         readings = []
         if latest:

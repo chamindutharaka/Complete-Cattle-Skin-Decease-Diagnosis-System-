@@ -41,7 +41,7 @@ class SensorReading(db.Document):
 
 class Alert(db.Document):
     message = db.StringField(required=True)
-    level = db.StringField(required=True) # warning, critical, DL_Anomaly
+    level = db.StringField(required=True) # warning, critical, dl_anomaly
     created_at = db.DateTimeField(default=datetime.utcnow)
     
     cattle = db.ReferenceField('Cattle', reverse_delete_rule=db.CASCADE)

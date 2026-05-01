@@ -1,12 +1,4 @@
-"""
-anomaly_detector.py  (Improved v2)
-===================================
-LSTM Autoencoder with:
-  - Dropout for regularisation
-  - Early Stopping during training
-  - Global shared model (works for ANY cow from day 1)
-  - Per-cow model support still retained for fine-tuning
-"""
+
 
 import numpy as np
 import os
@@ -31,17 +23,17 @@ class AnomalyDetector:
         self.global_model_path    = global_model_path
         self.global_threshold_path = global_threshold_path
 
-    # ── Architecture ────────────────────────────────────────────────────────────
+    # ── architecture ────────────────────────────────────────────────────────────
     def build_autoencoder(self, dropout_rate: float = 0.2) -> models.Sequential:
         model = models.Sequential([
-            # Encoder
+            # encoder
             layers.Input(shape=(self.sequence_length, self.n_features)),
             layers.LSTM(128, activation='tanh', return_sequences=True),
             layers.Dropout(dropout_rate),
             layers.LSTM(64, activation='tanh', return_sequences=False),
             layers.Dropout(dropout_rate),
             layers.RepeatVector(self.sequence_length),
-            # Decoder
+            # decoder
             layers.LSTM(64, activation='tanh', return_sequences=True),
             layers.Dropout(dropout_rate),
             layers.LSTM(128, activation='tanh', return_sequences=True),
@@ -53,7 +45,7 @@ class AnomalyDetector:
         )
         return model
 
-    # ── Training ────────────────────────────────────────────────────────────────
+    # ── training ────────────────────────────────────────────────────────────────
     def train_model(
         self,
         cattle_id,
@@ -63,7 +55,7 @@ class AnomalyDetector:
         validation_split: float = 0.1,
         verbose: int = 1,
     ) -> models.Sequential:
-        """Train a per-cow model with early stopping."""
+        
         model = self.build_autoencoder()
         print(f"  Training model for cattle ID: {cattle_id} | sequences: {len(data_sequences)}")
 
@@ -96,11 +88,9 @@ class AnomalyDetector:
         validation_split: float = 0.15,
         verbose: int = 1,
     ) -> models.Sequential:
-        """Train a GLOBAL model on ALL cattle data combined.
-        This model is used as fallback for new cows that have no per-cow model yet.
-        """
+        
         model = self.build_autoencoder()
-        print(f"\n  🌍 Training GLOBAL model | sequences: {len(data_sequences)}")
+        print(f"\n   Training GLOBAL model | sequences: {len(data_sequences)}")
 
         early_stop = callbacks.EarlyStopping(
             monitor='val_loss', patience=12, restore_best_weights=True, verbose=1
@@ -122,7 +112,7 @@ class AnomalyDetector:
         print(f"  ✅ Saved global model: {self.global_model_path}")
         return model
 
-    # ── Inference ────────────────────────────────────────────────────────────────
+    # ── inference ────────────────────────────────────────────────────────────────
     def calculate_reconstruction_errors(
         self, model: models.Sequential, data_sequences: np.ndarray
     ) -> np.ndarray:
@@ -142,7 +132,7 @@ class AnomalyDetector:
     ) -> float:
         threshold = float(np.percentile(errors, 100 * (1 - contamination)))
         joblib.dump(threshold, self.global_threshold_path)
-        print(f"  🌍 Global threshold: {threshold:.6f}")
+        print(f"   Global threshold: {threshold:.6f}")
         return threshold
 
     def load_anomaly_threshold(self, cattle_id) -> float | None:
@@ -160,11 +150,11 @@ class AnomalyDetector:
         return joblib.load(self.global_threshold_path) if os.path.exists(self.global_threshold_path) else None
 
     def predict_anomaly(self, cattle_id, single_sequence: np.ndarray):
-        """Try per-cow model first; fall back to global model for new cows."""
+        
         model = self.load_model(cattle_id)
         threshold = self.load_anomaly_threshold(cattle_id)
 
-        # Fallback to global model when no per-cow model exists
+        # fallback to global model when no per-cow model exists
         if model is None or threshold is None:
             model = self.load_global_model()
             threshold = self.load_global_threshold()

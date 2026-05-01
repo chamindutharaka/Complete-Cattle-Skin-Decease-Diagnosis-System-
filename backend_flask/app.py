@@ -2,7 +2,7 @@ import os
 import json
 import flask.json
 
-# Compatibility fix for Flask 3.0+ which removed JSONEncoder and JSONDecoder
+# compatibility fix for flask 3.0+ which removed jsonencoder and jsondecoder
 try:
     from flask.json import JSONEncoder
 except ImportError:
@@ -18,7 +18,7 @@ except ImportError:
     flask.json.JSONDecoder = JSONDecoder
 
 from flask import Flask
-# Restore removed attributes for flask-mongoengine compatibility
+# restore removed attributes for flask-mongoengine compatibility
 if not hasattr(Flask, 'json_encoder'):
     Flask.json_encoder = JSONEncoder
 if not hasattr(Flask, 'json_decoder'):
@@ -30,21 +30,21 @@ from backend_flask.routes.cattle import cattle_bp
 from backend_flask.routes.data import data_bp
 from dotenv import load_dotenv
 
-# Load environment variables
+# load environment variables
 load_dotenv()
 
 def create_app():
     app = Flask(__name__)
-    app.url_map.strict_slashes = False # Allow /api/cattle and /api/cattle/ to work the same
+    app.url_map.strict_slashes = False
     
-    # Configuration
+    # config
     app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'super-secret-research-key')
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'another-secret-key')
 
-    # Initialize Extensions (MongoDB, JWT, SocketIO, CORS)
+    # init extensions (mongodb, jwt, socketio, cors)
     init_extensions(app)
 
-    # Register Blueprints (Routes)
+    # register blueprints (routes)
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(cattle_bp, url_prefix='/api/cattle')
     app.register_blueprint(data_bp, url_prefix='/api/data')
@@ -57,5 +57,5 @@ def create_app():
 
 if __name__ == '__main__':
     app = create_app()
-    # Use socketio.run instead of app.run for WebSocket support
+    # use socketio.run instead of app.run for websocket support
     socketio.run(app, host='0.0.0.0', port=5006, debug=True)

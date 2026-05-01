@@ -4,7 +4,7 @@ import random
 import math
 import datetime
 
-# Configuration
+# config
 BACKEND_URL = "http://localhost:5006/api/data"
 DEVICES = [
     {"id": "esp32-001", "name": "Cow 1", "base_temp": 38.5, "base_hr": 70},
@@ -13,21 +13,21 @@ DEVICES = [
 ]
 
 def generate_reading(device_config, time_step, is_anomaly=False):
-    # Simulate diurnal cycle (24 hour period)
+    # simulate 24h cycle
     hour_factor = math.sin((time_step / 1440) * 2 * math.pi) 
     
-    # Base values
+    # base vals
     temp = device_config["base_temp"] + (hour_factor * 0.5) + random.uniform(-0.2, 0.2)
     humidity = 60 + (hour_factor * -5) + random.uniform(-2, 2)
     heart_rate = device_config["base_hr"] + (hour_factor * 2) + random.uniform(-3, 3)
-    distance = random.uniform(0, 50) # Random movement
+    distance = random.uniform(0, 50) # random movement
     spo2 = 98 + random.uniform(-1, 1)
 
     if is_anomaly:
         print(f"Injecting anomaly for {device_config['name']}")
-        temp += random.uniform(1.5, 3.0) # Fever
-        heart_rate += random.uniform(20, 40) # Tachycardia
-        distance = 0 # Lethargy (not moving)
+        temp += random.uniform(1.5, 3.0) # fever
+        heart_rate += random.uniform(20, 40) # tachycardia
+        distance = 0 # lethargy (not moving)
     
     return {
         "deviceId": device_config["id"],
@@ -65,7 +65,7 @@ if __name__ == "__main__":
                 reading = generate_reading(device, current_minute, is_anomaly)
                 send_data(reading)
                 
-            time.sleep(5) # Send data every 5 seconds
+            time.sleep(5) # send data every 5 seconds
             step += 1
             
     except KeyboardInterrupt:

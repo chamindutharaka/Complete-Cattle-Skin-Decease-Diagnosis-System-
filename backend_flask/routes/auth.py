@@ -36,7 +36,7 @@ def login():
     user = User.objects(username=username).first()
     
     if user and check_password_hash(user.password, password):
-        # In MongoEngine, id is automatically mapped to the MongoDB _id
+        # in mongoengine, id is automatically mapped to the mongodb _id
         access_token = create_access_token(identity=str(user.id))
         return jsonify({"token": access_token, "username": user.username, "role": user.role}), 200
         

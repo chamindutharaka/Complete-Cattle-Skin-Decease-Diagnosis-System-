@@ -18,24 +18,20 @@ class DataProcessor:
     ):
         self.sequence_length = sequence_length
         self.features = features or ['temperature', 'humidity', 'heartRate', 'distance', 'hour', 'day_of_week']
-        self.scalers: dict = {}   # key → MinMaxScaler (key = cattle_id OR "global")
+        self.scalers: dict = {}
 
-    # ── Sequence builder ────────────────────────────────────────────────────────
+    # ── sequence builder ────────────────────────────────────────────────────────
     def create_sequences(self, data: pd.DataFrame) -> np.ndarray:
-        """Slice a DataFrame into overlapping windows of length `sequence_length`."""
+        
         sequences = []
         arr = data[self.features].values
         for i in range(len(arr) - self.sequence_length + 1):
             sequences.append(arr[i : i + self.sequence_length])
         return np.array(sequences, dtype=np.float32)
 
-    # ── Normalisation ───────────────────────────────────────────────────────────
+    # ── normalisation ───────────────────────────────────────────────────────────
     def normalize_data(self, cattle_id, data: np.ndarray, fit: bool = False) -> np.ndarray:
-        """
-        Normalise 3-D array [n_sequences, seq_len, n_features].
-        If fit=True, a new scaler is created for cattle_id.
-        Falls back to the 'global' scaler when no per-cow scaler exists.
-        """
+        
         n_features = len(self.features)
         original_shape = data.shape
 
@@ -44,7 +40,7 @@ class DataProcessor:
             scaler.fit(data.reshape(-1, n_features))
             self.scalers[cattle_id] = scaler
 
-        # Use per-cow scaler; fall back to global
+        # use per-cow scaler; fall back to global
         scaler = self.scalers.get(cattle_id) or self.scalers.get("global")
         if scaler is None:
             raise ValueError(
@@ -63,7 +59,7 @@ class DataProcessor:
         out = scaler.inverse_transform(normalised.reshape(-1, len(self.features)))
         return out.reshape(original_shape)
 
-    # ── Live data fetching (from Flask backend → MongoDB) ──────────────────────
+    # ── live data fetching (from flask backend → mongodb) ──────────────────────
     def fetch_historical_data(self, cattle_id, auth_token: str, lookback_minutes: int = 300) -> pd.DataFrame:
         headers = {"Authorization": f"Bearer {auth_token}"}
         try:

@@ -4,13 +4,13 @@ from flask_cors import CORS
 from .models import db
 import os
 
-# Initialize extensions
+# init extensions
 socketio = SocketIO(cors_allowed_origins="*") 
 jwt = JWTManager()
 cors = CORS()
 
 def init_extensions(app):
-    # MongoDB Configuration
+    # mongodb config
     app.config['MONGODB_SETTINGS'] = {
         'host': os.getenv('MONGODB_URI')
     }
