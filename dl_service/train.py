@@ -100,7 +100,7 @@ def main():
         global_errors = detector.calculate_reconstruction_errors(global_model, global_seqs)
         detector.set_global_threshold(global_errors, contamination=CONTAMINATION)
     else:
-        print("⚠️  Not enough data for global model training.")
+        print("  Not enough data for global model training.")
 
     # ── step 3: fine-tune per-cow models ──────────────────────────────────────
     print("\n─── Phase 2: Per-Cow Models ───")
@@ -112,7 +112,7 @@ def main():
         cow_seqs = build_sequences(cow_df, processor, cattle_id=cid, fit_scaler=True)
 
         if cow_seqs is None or len(cow_seqs) < SEQUENCE_LENGTH:
-            print(f"  ⚠️  Skipping {cid}: insufficient data ({len(cow_df)} rows)")
+            print(f"    Skipping {cid}: insufficient data ({len(cow_df)} rows)")
             continue
 
         print(f"\n    [{cid}] {len(cow_seqs)} sequences")
@@ -130,11 +130,11 @@ def main():
     # ── step 4: save all scalers ───────────────────────────────────────────────
     scalers_path = os.path.join(MODELS_DIR, "scalers.joblib")
     joblib.dump(processor.scalers, scalers_path)
-    print(f"\n✅  Scalers saved: {scalers_path}")
+    print(f"\n  Scalers saved: {scalers_path}")
 
     # ── summary ────────────────────────────────────────────────────────────────
     print("\n" + "=" * 55)
-    print("✅  Training complete!")
+    print("  Training complete!")
     print(f"    Models folder: {MODELS_DIR}")
     saved = [f for f in os.listdir(MODELS_DIR) if f.endswith((".h5", ".joblib"))]
     for f in sorted(saved):
