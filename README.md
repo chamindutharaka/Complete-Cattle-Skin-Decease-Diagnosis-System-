@@ -1,20 +1,85 @@
-# Cattle Skin Disease Diagnosis - Dashboard
+# Cattle Anomaly Detection — Backend
 
-This project is the dashboard component of a larger system for diagnosing skin diseases in cattle. The dashboard provides a real-time view of sensor data (temperature and humidity) collected from IoT devices attached to the cattle.
+Real-time cattle health monitoring system using IoT sensors and Deep Learning.
+
+## System Architecture
+
+```
+ESP32 Sensors → Firebase Realtime DB → Firebase Bridge → Flask API → MongoDB
+                                                            ↓
+                                                     LSTM Autoencoder
+                                                            ↓
+                                                   Anomaly Detection
+                                                            ↓
+                                                  WebSocket (Socket.IO)
+                                                            ↓
+                                                    React Dashboard
+```
+
+## Tech Stack
+
+- **Backend:** Python Flask, Flask-SocketIO, Flask-MongoEngine
+- **Database:** MongoDB Atlas (NoSQL)
+- **Deep Learning:** LSTM Autoencoder (TensorFlow/Keras)
+- **Real-time:** WebSockets (Socket.IO)
+- **IoT:** ESP32 + Firebase Realtime Database
+- **Frontend:** React + Recharts + Socket.IO Client
 
 ## Features
 
-- **Real-time Monitoring:** View live temperature and humidity data from multiple IoT devices.
-- **Historical Data:** Analyze historical sensor data with interactive charts.
-- **Alerting System:** Receive automatic alerts for abnormal readings.
-- **User Authentication:** Secure access to the dashboard.
-- **Cattle Management:** Add and manage cattle in the system.
+- Real-time sensor data ingestion from IoT devices
+- Per-cow LSTM Autoencoder anomaly detection
+- Global fallback model for new cattle
+- WebSocket-based live data streaming to frontend
+- Automatic alert generation on anomaly detection
+- Historical data analysis and CSV export
+
+## How to Run
+
+### 1. Backend Server
+```bash
+cd cattle-backend
+source venv/bin/activate
+export PYTHONPATH=.
+python backend_flask/app.py
+```
+
+### 2. IoT Data (choose one)
+
+**Real hardware (ESP32 via Firebase):**
+```bash
+python firebase_bridge.py
+```
+
+**Simulated data (no hardware needed):**
+```bash
+python simulate_iot.py
+```
+
+### 3. Frontend
+```bash
+cd cattle-ai-frontend
+npm run dev
+```
 
 ## Project Structure
 
-- **/backend:** The Node.js and Express backend server, responsible for handling data from IoT devices, managing the database, and serving the API.
-- **/frontend:** The React and TypeScript frontend application, which provides the user interface for the dashboard.
-
-## Getting Started
-
-To get the full application running, you will need to start both the backend server and the frontend application. Please see the `README.md` files in the `backend` and `frontend` directories for detailed instructions.
+```
+cattle-backend/
+├── backend_flask/           # Main Flask backend
+│   ├── app.py               # Application entry point (Port 5006)
+│   ├── extensions.py        # MongoDB, JWT, SocketIO, CORS init
+│   ├── models.py            # Database models (Cattle, SensorReading, Alert)
+│   ├── routes/
+│   │   ├── auth.py          # JWT authentication endpoints
+│   │   ├── cattle.py        # Cattle CRUD + detail endpoints
+│   │   └── data.py          # IoT data ingestion + anomaly detection
+│   └── services/
+│       ├── anomaly_detector.py  # LSTM Autoencoder model
+│       └── data_processor.py    # Data normalization
+├── dl_service/
+│   └── models/              # Trained .h5 models + .joblib thresholds
+├── arduino/                 # ESP32 firmware
+├── firebase_bridge.py       # Firebase to Flask data bridge
+└── simulate_iot.py          # IoT data simulator for testing
+```

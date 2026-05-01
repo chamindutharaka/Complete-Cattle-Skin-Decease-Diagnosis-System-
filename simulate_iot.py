@@ -24,7 +24,7 @@ def generate_reading(device_config, time_step, is_anomaly=False):
     spo2 = 98 + random.uniform(-1, 1)
 
     if is_anomaly:
-        print(f"!!! INJECTING ANOMALY FOR {device_config['name']} !!!")
+        print(f"Injecting anomaly for {device_config['name']}")
         temp += random.uniform(1.5, 3.0) # Fever
         heart_rate += random.uniform(20, 40) # Tachycardia
         distance = 0 # Lethargy (not moving)

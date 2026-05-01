@@ -31,9 +31,9 @@ detector  = AnomalyDetector(
 scalers_path = os.path.join(MODELS_DIR, "scalers.joblib")
 try:
     processor.scalers = joblib.load(scalers_path)
-    print(f"✅  Scalers loaded: {list(processor.scalers.keys())}")
+    print(f"Scalers loaded: {list(processor.scalers.keys())}")
 except FileNotFoundError:
-    print("⚠️  Scalers not found. Run: python dl_service/train.py")
+    print("Scalers not found. Run: python dl_service/train.py")
 
 
 @app.route('/health', methods=['GET'])

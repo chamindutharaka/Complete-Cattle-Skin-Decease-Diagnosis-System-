@@ -32,3 +32,5 @@ dl_service/models/*.joblib
 dl_service/models/*.h5
 dl_service/models/*.keras
 dl_service/models/*.pt
+
+.ipynb_checkpoints/

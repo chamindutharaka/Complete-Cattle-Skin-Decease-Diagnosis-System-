@@ -105,6 +105,7 @@ def receive_data():
                 
                 # Predict
                 is_anomaly, error = detector.predict_anomaly(str(cattle.id), normalized_seq[0])
+                print(f"[DEBUG] Cattle={cattle.name} Error={error} IsAnomaly={is_anomaly}")
                 
                 if is_anomaly:
                     print(f"ANOMALY DETECTED for {cattle.name}! Error: {error}")

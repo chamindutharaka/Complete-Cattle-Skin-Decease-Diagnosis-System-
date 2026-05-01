@@ -42,7 +42,7 @@ class AnomalyDetector:
     def load_model(self, cattle_id):
         model_path = f"{self.model_path_prefix}{cattle_id}.h5"
         if os.path.exists(model_path):
-            return models.load_model(model_path)
+            return models.load_model(model_path, compile=False)
         return None
     
     def calculate_reconstruction_errors(self, model, data_sequences):
@@ -72,9 +72,19 @@ class AnomalyDetector:
         model = self.load_model(cattle_id)
         threshold = self.load_anomaly_threshold(cattle_id)
 
+        # Fallback to global model if per-cow model is not available
         if model is None or threshold is None:
-            print(f"Model or threshold not found for cattle ID {cattle_id}. Cannot predict anomaly.")
-            return False, None # Cannot predict
+            model_dir = os.path.dirname(self.model_path_prefix)
+            global_model_path = os.path.join(model_dir, "global_model.h5")
+            global_threshold_path = os.path.join(model_dir, "threshold_global.joblib")
+
+            if os.path.exists(global_model_path) and os.path.exists(global_threshold_path):
+                model = models.load_model(global_model_path, compile=False)
+                threshold = joblib.load(global_threshold_path)
+                print(f"Using global fallback model for cattle ID {cattle_id}")
+            else:
+                print(f"No model available for cattle ID {cattle_id}. Skipping anomaly detection.")
+                return False, None
         
         single_sequence = np.expand_dims(single_sequence, axis=0) # Add batch dimension
         reconstruction_error = self.calculate_reconstruction_errors(model, single_sequence)[0]

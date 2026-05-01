@@ -51,13 +51,22 @@ class DataProcessor:
     def normalize_data(self, cattle_id, data: np.ndarray, fit=False):
         """
         Normalizes data. If fit is True, fits a new scaler for the cattle_id.
-        Otherwise, uses an existing scaler.
+        Otherwise, uses an existing scaler. Falls back to global scaler if available.
         """
-        if cattle_id not in self.scalers or fit:
+        if cattle_id not in self.scalers and not fit:
+            # Fallback to global scaler for new cattle
+            if 'global' in self.scalers:
+                print(f"Using global scaler for cattle ID {cattle_id}")
+                self.scalers[cattle_id] = self.scalers['global']
+            else:
+                # No global scaler either, fit a new one
+                scaler = MinMaxScaler()
+                self.scalers[cattle_id] = scaler.fit(data.reshape(-1, len(self.features)))
+        elif fit:
             scaler = MinMaxScaler()
             self.scalers[cattle_id] = scaler.fit(data.reshape(-1, len(self.features)))
         
-        # Apply scaling. Reshape back for MinMaxScaler if it was originally 3D for example
+        # Apply scaling
         original_shape = data.shape
         data_2d = data.reshape(-1, len(self.features))
         normalized_data_2d = self.scalers[cattle_id].transform(data_2d)
