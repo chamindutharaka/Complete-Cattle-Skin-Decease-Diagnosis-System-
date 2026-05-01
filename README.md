@@ -1,16 +1,89 @@
-# React + Vite
+# Cattle Anomaly Detection System
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Real-time cattle health monitoring system using IoT sensors and Deep Learning.
+This repository contains both the React Frontend and the Python Backend.
 
-Currently, two official plugins are available:
+## System Architecture
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+```
+ESP32 Sensors → Firebase Realtime DB → Firebase Bridge → Flask API → MongoDB
+                                                            ↓
+                                                     LSTM Autoencoder
+                                                            ↓
+                                                   Anomaly Detection
+                                                            ↓
+                                                  WebSocket (Socket.IO)
+                                                            ↓
+                                                    React Dashboard
+```
 
-## React Compiler
+## Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Backend:** Python Flask, Flask-SocketIO, Flask-MongoEngine
+- **Database:** MongoDB Atlas (NoSQL)
+- **Deep Learning:** LSTM Autoencoder (TensorFlow/Keras)
+- **Real-time:** WebSockets (Socket.IO)
+- **IoT:** ESP32 + Firebase Realtime Database
+- **Frontend:** React + Recharts + Socket.IO Client
 
-## Expanding the ESLint configuration
+## Features
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- Real-time sensor data ingestion from IoT devices
+- Per-cow LSTM Autoencoder anomaly detection
+- Global fallback model for new cattle
+- WebSocket-based live data streaming to frontend
+- Automatic alert generation on anomaly detection
+- Historical data analysis and CSV export
+
+## How to Run
+
+### 1. Backend Server
+```bash
+cd cattle-backend
+source venv/bin/activate
+export PYTHONPATH=.
+python backend_flask/app.py
+```
+
+### 2. IoT Data (choose one)
+
+**Real hardware (ESP32 via Firebase):**
+```bash
+python firebase_bridge.py
+```
+
+**Simulated data (no hardware needed):**
+```bash
+python simulate_iot.py
+```
+
+### 3. Frontend
+```bash
+npm install
+npm run dev
+```
+
+## Project Structure
+
+```
+.
+├── backend_flask/           # Main Flask backend
+│   ├── app.py               # Application entry point (Port 5006)
+│   ├── extensions.py        # MongoDB, JWT, SocketIO, CORS init
+│   ├── models.py            # Database models (Cattle, SensorReading, Alert)
+│   ├── routes/
+│   │   ├── auth.py          # JWT authentication endpoints
+│   │   ├── cattle.py        # Cattle CRUD + detail endpoints
+│   │   └── data.py          # IoT data ingestion + anomaly detection
+│   └── services/
+│       ├── anomaly_detector.py  # LSTM Autoencoder model
+│       └── data_processor.py    # Data normalization
+├── dl_service/
+│   └── models/              # Trained .h5 models + .joblib thresholds
+├── arduino/                 # ESP32 firmware
+├── firebase_bridge.py       # Firebase to Flask data bridge
+├── simulate_iot.py          # IoT data simulator for testing
+├── src/                     # React frontend source
+├── package.json             # Frontend dependencies
+└── vite.config.js           # Vite configuration
+```

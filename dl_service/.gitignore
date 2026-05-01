@@ -1,0 +1,20 @@
+# General Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment
+.env
+venv/
+env/
+.venv/
+
+# Deep Learning Models
+models/*.joblib
+models/*.h5
+models/*.keras
+models/*.pt
+models/*.h5
+
+# OS Files
+.DS_Store

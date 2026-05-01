@@ -22,3 +22,32 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Python virtual environment
+venv/
+.venv/
+env/
+bin/
+lib/
+include/
+pyvenv.cfg
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Backend specific
+backend_flask/models_data/*.db
+backend_flask/models_data/*.sqlite3
+backend_flask/.env
+
+# DL Service specific
+dl_service/.env
+dl_service/models/*.joblib
+dl_service/models/*.h5
+dl_service/models/*.keras
+dl_service/models/*.pt
+
+.ipynb_checkpoints/
